@@ -44,7 +44,7 @@ if (loguru_ADDED)
   add_library(loguru "${loguru_SOURCE_DIR}/loguru.cpp")
   target_compile_definitions(loguru PUBLIC "-DLOGURU_USE_FMTLIB=1")
   target_link_libraries(loguru PUBLIC fmt)
-  #target_link_libraries(loguru PUBLIC execinfo)
+  target_link_libraries(loguru PUBLIC execinfo)
   target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
 endif()
 

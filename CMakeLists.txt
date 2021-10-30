@@ -16,7 +16,6 @@ otto_option(ENABLE_LTO "Enable link time optimization on release builds. Only wo
 # Specific for RPi ARM platform
 set(CMAKE_LINKER_FLAGS_RELEASE "${CMAKE_LINKER_FLAGS_RELEASE} -ffast-math -funsafe-math-optimizations -mfpu=neon-vfpv4")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math -funsafe-math-optimizations -mfpu=neon-vfpv4")
-target_link_libraries(loguru PUBLIC execinfo)
 
 include(cmake/CPM.cmake)
 set(CPM_USE_LOCAL_PACKAGES OFF)
