@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(OTTO-MCU-SERVICE LANGUAGES CXX C)
+project(OTTO_MCU_SERVICE LANGUAGES CXX C)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
@@ -12,6 +12,11 @@ include(cmake/utils.cmake)
 otto_option(ENABLE_ASAN "Enable the adress sanitizer on development builds" OFF)
 otto_option(ENABLE_UBSAN "Enable the undefined behaviour sanitizer on development builds" OFF)
 otto_option(ENABLE_LTO "Enable link time optimization on release builds. Only works on clang" OFF)
+
+# Specific for RPi ARM platform
+set(CMAKE_LINKER_FLAGS_RELEASE "${CMAKE_LINKER_FLAGS_RELEASE} -ffast-math -funsafe-math-optimizations -mfpu=neon-vfpv4")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math -funsafe-math-optimizations -mfpu=neon-vfpv4")
+target_link_libraries(loguru PUBLIC execinfo)
 
 include(cmake/CPM.cmake)
 set(CPM_USE_LOCAL_PACKAGES OFF)
@@ -60,7 +65,7 @@ else()
     message(WARNING "You are using an unsupported compiler! Compilation has only been tested with Clang and GCC.")
 endif()
 
-set(OTTO_EXTERNAL_DIR ${OTTO_MCU_SERVICE_SOURCE_DIR}/external/)
+set(OTTO_MCU_SERVICE_EXTERNAL_DIR ${OTTO_MCU_SERVICE_SOURCE_DIR}/external/)
 
 
 # Enable warnings for local code

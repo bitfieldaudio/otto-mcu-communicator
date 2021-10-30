@@ -42,7 +42,7 @@ CPMAddPackage(
 
 if (loguru_ADDED)
   add_library(loguru "${loguru_SOURCE_DIR}/loguru.cpp")
-    target_compile_definitions(loguru PUBLIC "-DLOGURU_USE_FMTLIB=1")
+  target_compile_definitions(loguru PUBLIC "-DLOGURU_USE_FMTLIB=1")
   target_link_libraries(loguru PUBLIC fmt)
   #target_link_libraries(loguru PUBLIC execinfo)
   target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
@@ -104,7 +104,7 @@ else()
     GITHUB_REPOSITORY Element-0/boost-cmake
     GIT_TAG 7199b5408646f8067a00f7d9e83afffb19dde3e8
     OPTIONS
-      "BOOST_URL https://dl.bintray.com/boostorg/release/1.74.0/source/boost_1_74_0.tar.bz2"
+      "BOOST_URL https://boostorg.jfrog.io/artifactory/main/release/1.74.0/source/boost_1_74_0.tar.bz2"
       "BOOST_URL_SHA256 83bfc1507731a0906e387fc28b7ef5417d591429e51e788417fe9ff025e116b1"
       "BOOST_DISABLE_TESTS ON"
   )
