@@ -1,104 +1,123 @@
-#include <iostream>
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
 
-#include "lib/logging.hpp"
-#include "lib/util/i2c.hpp"
+#include <iostream>
+#include <errno.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+#include <blockingconcurrentqueue.h>
+#include <readerwriterqueue.h>
+
+#include "lib/i2c.hpp"
+#include "app/controller.hpp"
 
 using namespace otto;
 
-struct hex {
-  std::uint8_t data;
-  friend std::ostream &operator<<(std::ostream &str, const hex &self) {
-    auto flags = str.flags();
-    auto &res = str << std::setfill('0') << std::setw(2) << std::hex
-                    << (int)self.data;
-    str.flags(flags);
-    return res;
-  }
-};
+constexpr int packet_length = 17;
+
+using spsc_queue = moodycamel::BlockingReaderWriterQueue<util::Packet>;
+using mpmc_queue = moodycamel::BlockingConcurrentQueue<util::Packet>;
+
+void start_new_connection(int cfd, Controller& controller) {
+  std::jthread thr{[cfd, &controller](std::stop_token stop_token){
+    // Create new queue
+    spsc_queue from_mcu;
+    controller.add_connection(&from_mcu);
+    // Get other queue from controller
+    mpmc_queue& to_mcu = controller.get_queue();
+
+    // Spawn separate task for packets going: MCU -> client
+    std::jthread child{[cfd, &from_mcu](std::stop_token child_stop_token){
+      util::Packet p;
+      while (!child_stop_token.stop_requested()) {
+        from_mcu.wait_dequeue(p);
+        // Filter out nullcmd.
+        if (p.cmd != util::Command::none) write(cfd, &p, packet_length);
+      }  
+    }};
+    // Continuously pass messages from client -> MCU 
+    while (!stop_token.stop_requested()) {
+      util::Packet p;
+      // Zero indicates EOF (client closed connection)
+      if(read(cfd, &p, packet_length) == 0) break;
+      to_mcu.enqueue(p);
+    }
+    // Stop child task
+    child.request_stop();
+    from_mcu.enqueue(util::Packet{});
+    child.join();
+    // Remove connection
+    controller.remove_connection(&from_mcu);
+  }};
+}
 
 int main(int argc, char **argv) {
-  util::I2C i2c_obj;
-  while (std::cin.good()) {
-    std::vector<std::uint8_t> buffer;
-    std::string line;
-    std::cout << "\n> ";
-    std::getline(std::cin, line);
-    auto stream = std::stringstream(line);
-    std::string cmd;
-    std::getline(stream, cmd, ' ');
-    if (cmd == "o") {
-      std::string path;
-      int addr = -1;
-      stream >> path;
-      stream >> addr;
-      if (addr < 0 || path.empty()) {
-        std::cout << "Usage: o <path> <i2c address>" << std::endl;
-        continue;
-      }
-      std::cout << "Opening " << path << " with address "
-                << hex{static_cast<std::uint8_t>(addr)} << std::endl;
-      i2c_obj = addr;
-      auto ec = i2c_obj.open(path);
-      if (ec) {
-        std::cout << "error opening i2c device: " << ec << std::endl;
-        continue;
-      }
-    }
-    if (!i2c_obj.is_open()) {
-      std::cout << "Use o <path> <i2c address> to open an i2c device first"
-                << std::endl;
-      continue;
-    }
-    if (cmd == "w") {
-      std::string arg;
-      while (std::getline(stream, arg, ' ')) {
-        errno = 0;
-        std::uint8_t byte = std::strtol(arg.c_str(), nullptr, 16);
-        if (errno != 0) {
-          std::cout << "Error parsing: " << strerror(errno) << std::endl;
-          continue;
-        }
-        buffer.push_back(byte);
-      }
-      if (buffer.size() == 0) {
-        std::cout << "Usage: w <space separated bytes>" << std::endl;
-        continue;
-      }
-      std::cout << "Writing ";
-      for (auto b : buffer)
-        std::cout << hex{b} << " ";
-      std::cout << std::endl;
-      if (auto err = i2c_obj.write(buffer)) {
-        std::cout << "Error: " << err.message() << std::endl;
-      }
-    } else if (cmd == "r") {
-      int arg = -1;
-      stream >> arg;
-      if (arg < 1) {
-        std::cout << "Expected count larger than 0. Usage: r <count>"
-                  << std::endl;
-        continue;
-      }
-      buffer.resize(arg);
-      std::cout << std::dec << "Reading " << arg << " bytes" << std::endl;
-      if (auto err = i2c_obj.read_into(buffer)) {
-        std::cout << "Error: " << err.message() << std::endl;
-        continue;
-      }
-      std::cout << "Result: ";
-      for (auto b : buffer)
-        std::cout << hex{b} << " ";
-      std::cout << std::endl;
-    } else if (cmd == "q") {
-      break;
-    } else {
-      std::cout << R"(
-Commands:
-  o <path> <i2c address>           Open i2c device
-  w <space separated bytes>        write bytes to i2c
-  r <count>                        read <count> bytes from i2c
-  q                                quit
-)";
-    }
+  std::string path;
+  std::uint16_t addr;
+  // Get path and address from arguments
+  po::options_description desc("MCU Communicator Service Options");
+  desc.add_options()("path,p",
+                     po::value<std::string>(&path)->default_value("/dev/i2c-1"),
+                     "The device path (default is '/dev/i2c-1')")(
+      "address,a", po::value<uint16_t>(&addr)->default_value(119),
+      "I2C address in decimal (default is 119 = 0x77)");
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);
+
+  std::chrono::duration wait_time = std::chrono::milliseconds(1);
+
+  // Start MCUPort
+  mcu_port_t port{{addr, path}};
+  // Start controller
+  Controller controller(std::move(port), wait_time);
+
+  // Start socket
+  int sfd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (sfd == -1) {
+    std::cout << "start" << std::endl;
+    return -1;
   }
+
+  struct sockaddr_un socket_address;
+  std::string socket_path = "/var/run/mcucomms";
+  // Delete any file that already exists at the address. Make sure the deletion
+  // succeeds. If the error is just that the file/directory doesn't exist, it's fine.
+  if (remove(socket_path.c_str()) == -1 && errno != ENOENT) {
+    std::cout << "socket";
+    return -1;
+  }
+  // Zero out the address, and set family and path.
+  memset(&socket_address, 0, sizeof(struct sockaddr_un));
+  socket_address.sun_family = AF_UNIX;
+  strncpy(socket_address.sun_path, socket_path.c_str(), sizeof(socket_address.sun_path) - 1);
+  // Bind the socket to the address. Note that we're binding the server socket
+  // to a well-known address so that clients know where to connect.
+  if (bind(sfd, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_un)) == -1) {
+    std::cout << "bind" << std::endl;
+    return -1;
+  }
+  // The listen call marks the socket as *passive*. The socket will subsequently
+  // be used to accept connections from *active* sockets.
+  // listen cannot be called on a connected socket (a socket on which a connect()
+  // has been succesfully performed or a socket returned by a call to accept()).
+  int max_waiting_connections = 5;
+  if (listen(sfd, max_waiting_connections) == -1) {
+    std::cout << "listen" << std::endl;
+    return -1;
+  }
+  /* Handle client connections iteratively */
+  for (;;) {          
+    // Accept a connection. The connection is returned on a NEW
+    // socket, 'cfd'; the listening socket ('sfd') remains open
+    // and can be used to accept further connections. */
+    printf("Waiting to accept a connection...\n");
+    // NOTE: blocks until a connection request arrives.
+    int cfd = accept(sfd, NULL, NULL);
+    printf("Accepted socket fd = %d\n", cfd);
+    start_new_connection(cfd, controller);
+  }
+
 }

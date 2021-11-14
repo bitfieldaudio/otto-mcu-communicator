@@ -33,22 +33,6 @@ if (nlohmann_json_ADDED)
 endif()
 
 CPMAddPackage(
-  NAME loguru
-  GITHUB_REPOSITORY emilk/loguru 
-  VERSION 2.1.0
-  DOWNLOAD_ONLY YES
-  GIT_SHALLOW ON
-) 
-
-if (loguru_ADDED)
-  add_library(loguru "${loguru_SOURCE_DIR}/loguru.cpp")
-  target_compile_definitions(loguru PUBLIC "-DLOGURU_USE_FMTLIB=1")
-  target_link_libraries(loguru PUBLIC fmt)
-  #target_link_libraries(loguru PUBLIC execinfo)
-  target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
-endif()
-
-CPMAddPackage(
   NAME nanobench
   VERSION 4.0.0
   GITHUB_REPOSITORY martinus/nanobench
@@ -74,6 +58,18 @@ if (concurrentqueue_ADDED)
 endif()
 
 CPMAddPackage(
+  NAME readerwriterqueue
+  VERSION 1.0.5
+  GITHUB_REPOSITORY cameron314/readerwriterqueue
+  DOWNLOAD_ONLY YES
+)
+
+if (readerwriterqueue_ADDED) 
+  add_library(readerwriterqueue INTERFACE)
+  target_include_directories(readerwriterqueue SYSTEM INTERFACE "${readerwriterqueue_SOURCE_DIR}")
+endif()
+
+CPMAddPackage(
   NAME yamc
   GITHUB_REPOSITORY yohhoy/yamc
   GIT_TAG fc378ad9c4169a876e769b91c7d2bddf669d1a91
@@ -96,6 +92,7 @@ add_library(otto_boost INTERFACE)
 
 if(Boost_FOUND)
   target_link_libraries(otto_boost INTERFACE Boost::headers)
+  target_link_libraries(otto_boost INTERFACE Boost::program_options)
 else()
   # boost-cmake is not updated, so manually set the url to a newer version
   # Also use a fork which has an updated list of sources
@@ -109,4 +106,5 @@ else()
       "BOOST_DISABLE_TESTS ON"
   )
   target_link_libraries(otto_boost INTERFACE Boost::boost)
+  target_link_libraries(otto_boost INTERFACE Boost::program_options)
 endif()

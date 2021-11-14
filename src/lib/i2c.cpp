@@ -9,10 +9,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#include "lib/util/utility.hpp"
-
-#include "lib/logging.hpp"
+#include <filesystem>
 
 namespace otto::util {
 
@@ -36,14 +33,14 @@ namespace otto::util {
 
     i2c_fd = ::open(path.c_str(), O_RDWR);
     if (i2c_fd < 0) {
-      LOGE("Check that the i2c-dev & i2c-bcm2708 kernel modules "
-           "are loaded.");
+      //LOGE("Check that the i2c-dev & i2c-bcm2708 kernel modules "
+      //     "are loaded.");
       return std::error_code{errno, std::generic_category()};
     }
 
     // Make sure the driver supports plain I2C I/O:
     int rc = ::ioctl(i2c_fd, I2C_FUNCS, &i2c_funcs);
-    OTTO_ASSERT(i2c_funcs & I2C_FUNC_I2C);
+    // OTTO_ASSERT(i2c_funcs & I2C_FUNC_I2C);
     if (rc) return std::error_code{errno, std::generic_category()};
     return {};
   }

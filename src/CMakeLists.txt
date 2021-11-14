@@ -1,7 +1,7 @@
 set(CMAKE_CXX_STANDARD 20)
 
-file(GLOB_RECURSE headers "${OTTO_MCU_SERVICE_SOURCE_DIR}/src/*.hpp")
-file(GLOB_RECURSE sources "${OTTO_MCU_SERVICE_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE headers "${OTTO_MCU_SERVICE_SOURCE_DIR}/src/app/*.hpp" "${OTTO_MCU_SERVICE_SOURCE_DIR}/src/lib/*.hpp")
+file(GLOB_RECURSE sources "${OTTO_MCU_SERVICE_SOURCE_DIR}/src/app/*.cpp" "${OTTO_MCU_SERVICE_SOURCE_DIR}/src/lib/*.cpp")
 
 find_package (Threads)
 # Library
@@ -23,10 +23,10 @@ otto_add_definitions(otto_mcu_service_exec)
 target_link_libraries(otto_mcu_service_src PUBLIC external)
 target_link_libraries(otto_mcu_service_src PUBLIC fmt)
 target_link_libraries(otto_mcu_service_src PUBLIC nlohmann_json)
-target_link_libraries(otto_mcu_service_src PUBLIC loguru)
 target_link_libraries(otto_mcu_service_src PUBLIC nanobench)
 target_link_libraries(otto_mcu_service_src PUBLIC magic_enum)
 target_link_libraries(otto_mcu_service_src PUBLIC concurrentqueue)
+target_link_libraries(otto_mcu_service_src PUBLIC readerwriterqueue)
 target_link_libraries(otto_mcu_service_src PUBLIC function2)
 #target_link_libraries(otto_mcu_service_src PUBLIC toml11)
 target_link_libraries(otto_mcu_service_src PUBLIC otto_boost)
