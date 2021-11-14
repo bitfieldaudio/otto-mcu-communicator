@@ -33,6 +33,25 @@ if (nlohmann_json_ADDED)
 endif()
 
 CPMAddPackage(
+<<<<<<< HEAD
+=======
+  NAME loguru
+  GITHUB_REPOSITORY emilk/loguru 
+  VERSION 2.1.0
+  DOWNLOAD_ONLY YES
+  GIT_SHALLOW ON
+) 
+
+if (loguru_ADDED)
+  add_library(loguru "${loguru_SOURCE_DIR}/loguru.cpp")
+  target_compile_definitions(loguru PUBLIC "-DLOGURU_USE_FMTLIB=1")
+  target_link_libraries(loguru PUBLIC fmt)
+  target_link_libraries(loguru PUBLIC execinfo)
+  target_include_directories(loguru SYSTEM PUBLIC "${loguru_SOURCE_DIR}")
+endif()
+
+CPMAddPackage(
+>>>>>>> 09fb57a1b7b2b305eb7aaa8ff2f3028d46d5f2c3
   NAME nanobench
   VERSION 4.0.0
   GITHUB_REPOSITORY martinus/nanobench

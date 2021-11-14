@@ -10,7 +10,7 @@ target_include_directories(otto_mcu_service_src PUBLIC ${OTTO_MCU_SERVICE_SOURCE
 target_link_libraries(otto_mcu_service_src PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
 
 # Executable
-add_executable(otto_mcu_service_exec ${OTTO_MCU_SERVICE_SOURCE_DIR}/src/main.cpp)
+add_executable(otto_mcu_service_exec ${OTTO_MCU_SERVICE_SOURCE_DIR}/main.cpp)
 target_link_libraries(otto_mcu_service_exec PUBLIC otto_mcu_service_src)
 set_target_properties(otto_mcu_service_exec PROPERTIES OUTPUT_NAME mcu_service)
 
