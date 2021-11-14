@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   }
 
   struct sockaddr_un socket_address;
-  std::string socket_path = "/home/jonatan/Documents/Dev/otto-communicator/mcucomms";
+  std::string socket_path = "/var/run/mcucomms";
   // Delete any file that already exists at the address. Make sure the deletion
   // succeeds. If the error is just that the file/directory doesn't exist, it's fine.
   if (remove(socket_path.c_str()) == -1 && errno != ENOENT) {
