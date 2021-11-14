@@ -28,29 +28,37 @@ void start_new_connection(int cfd, Controller& controller) {
     // Get other queue from controller
     mpmc_queue& to_mcu = controller.get_queue();
 
+    std::cout << "Spawning subtask" << std::endl;
+
     // Spawn separate task for packets going: MCU -> client
     std::jthread child{[cfd, &from_mcu](std::stop_token child_stop_token){
       util::Packet p;
       while (!child_stop_token.stop_requested()) {
+
+        std::cout << "Subtask: waiting to dequeue" << std::endl;
         from_mcu.wait_dequeue(p);
         // Filter out nullcmd.
         if (p.cmd != util::Command::none) write(cfd, &p, packet_length);
       }  
     }};
     // Continuously pass messages from client -> MCU 
+    std::cout << "Before entering loop" << std::endl;
     while (!stop_token.stop_requested()) {
       util::Packet p;
+      std::cout << "Task: waiting to read" << std::endl;
       // Zero indicates EOF (client closed connection)
       if(read(cfd, &p, packet_length) == 0) break;
       to_mcu.enqueue(p);
     }
     // Stop child task
+    std::cout << "Stopping child task" << std::endl;
     child.request_stop();
     from_mcu.enqueue(util::Packet{});
     child.join();
     // Remove connection
     controller.remove_connection(&from_mcu);
   }};
+  thr.detach();
 }
 
 int main(int argc, char **argv) {
@@ -67,7 +75,7 @@ int main(int argc, char **argv) {
   po::store(po::parse_command_line(argc, argv, desc), vm);
   po::notify(vm);
 
-  std::chrono::duration wait_time = std::chrono::milliseconds(1);
+  std::chrono::duration wait_time = std::chrono::milliseconds(500);
 
   // Start MCUPort
   mcu_port_t port{{addr, path}};
@@ -82,7 +90,7 @@ int main(int argc, char **argv) {
   }
 
   struct sockaddr_un socket_address;
-  std::string socket_path = "/var/run/mcucomms";
+  std::string socket_path = "/home/jonatan/Documents/Dev/otto-communicator/mcucomms";
   // Delete any file that already exists at the address. Make sure the deletion
   // succeeds. If the error is just that the file/directory doesn't exist, it's fine.
   if (remove(socket_path.c_str()) == -1 && errno != ENOENT) {

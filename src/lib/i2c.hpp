@@ -8,7 +8,7 @@
 #include <ranges>
 #include <algorithm>
 
-#include<magic_enum.hpp>
+#include <magic_enum.hpp>
 
 #include "lib/utility.hpp"
 
