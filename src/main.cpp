@@ -1,4 +1,6 @@
+#include <bits/stdint-uintn.h>
 #include <boost/program_options.hpp>
+#include <ostream>
 namespace po = boost::program_options;
 
 #include <errno.h>
@@ -9,8 +11,8 @@ namespace po = boost::program_options;
 #include <readerwriterqueue.h>
 
 #include "app/controller.hpp"
-#include "lib/i2c.hpp"
 #include "lib/domain_socket.hpp"
+#include "lib/i2c.hpp"
 
 using namespace otto;
 
@@ -68,8 +70,10 @@ int main(int argc, char **argv) {
   std::string i2c_dev_path;
   std::uint16_t addr;
   std::string socket_path;
+  int wait_time_ms;
   po::options_description desc("MCU Communicator Service Options");
   desc.add_options()(
+      "help,h", "Print this help message")(
       "device,d",
       po::value<std::string>(&i2c_dev_path)->default_value("/dev/i2c-1"),
       "The I2Cdevice (default is '/dev/i2c-1')")(
@@ -77,12 +81,22 @@ int main(int argc, char **argv) {
       "I2C address in decimal (default is 119 = 0x77)")(
       "socket,s",
       po::value<std::string>(&socket_path)->default_value("/run/mcucomms"),
-      "Socket path (default is /run/mcucomms)");
-  po::variables_map vm;
-  po::store(po::parse_command_line(argc, argv, desc), vm);
-  po::notify(vm);
+      "Socket path (default is /run/mcucomms)")(
+      "wait_time,w", po::value<int>(&wait_time_ms)->default_value(1),
+      "I2C polling wait time in milliseconds (default is 1)");
 
-  std::chrono::duration wait_time = std::chrono::milliseconds(500);
+  // Parse command-line arguments
+  po::variables_map vm;
+  po::store(po::command_line_parser(argc, argv).
+          options(desc).run(), vm);
+  po::notify(vm);
+  // Check for 'help' argument
+  if (vm.count ("help")) {
+        std::cerr << desc << "\n";
+        return 1;
+    }
+
+  std::chrono::duration wait_time = std::chrono::milliseconds(wait_time_ms);
 
   // Start MCUPort
   mcu_port_t port{{addr, i2c_dev_path}};
