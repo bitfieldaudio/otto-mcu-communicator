@@ -34,3 +34,6 @@ test/core/voices/todo.md
 .clangd/
 .cache
 ottoconf.toml
+
+mcucomms
+*/mcucomms
