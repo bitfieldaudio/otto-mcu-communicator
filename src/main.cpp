@@ -21,7 +21,7 @@ constexpr int packet_length = 17;
 using spsc_queue = moodycamel::BlockingReaderWriterQueue<util::Packet>;
 using mpmc_queue = moodycamel::BlockingConcurrentQueue<util::Packet>;
 
-void start_new_connection(int cfd, Controller &controller) {
+std::jthread start_new_connection(int cfd, Controller &controller) {
   std::jthread thr{[cfd, &controller](std::stop_token stop_token) {
     // Create new queue
     spsc_queue from_mcu;
@@ -35,8 +35,6 @@ void start_new_connection(int cfd, Controller &controller) {
     std::jthread child{[cfd, &from_mcu](std::stop_token child_stop_token) {
       util::Packet p;
       while (!child_stop_token.stop_requested()) {
-
-        std::cout << "Subtask: waiting to dequeue" << std::endl;
         from_mcu.wait_dequeue(p);
         // Filter out nullcmd.
         if (p.cmd != util::Command::none)
@@ -44,10 +42,8 @@ void start_new_connection(int cfd, Controller &controller) {
       }
     }};
     // Continuously pass messages from client -> MCU
-    std::cout << "Before entering loop" << std::endl;
     while (!stop_token.stop_requested()) {
       util::Packet p;
-      std::cout << "Task: waiting to read" << std::endl;
       // Zero indicates EOF (client closed connection)
       if (read(cfd, &p, packet_length) == 0)
         break;
@@ -61,7 +57,7 @@ void start_new_connection(int cfd, Controller &controller) {
     // Remove connection
     controller.remove_connection(&from_mcu);
   }};
-  thr.detach();
+  return thr;
 }
 
 int main(int argc, char **argv) {
@@ -116,6 +112,7 @@ int main(int argc, char **argv) {
     return -1;
   }
   /* Handle client connections iteratively */
+  std::vector<std::jthread> thread_handles;
   for (;;) {
     // Accept a connection. The connection is returned on a NEW
     // socket, 'cfd'; the listening socket ('sfd') remains open
@@ -124,6 +121,9 @@ int main(int argc, char **argv) {
     // NOTE: blocks until a connection request arrives.
     int cfd = accept(sfd, NULL, NULL);
     printf("Accepted socket fd = %d\n", cfd);
-    start_new_connection(cfd, controller);
+    // Garbage collection
+    std::erase_if(thread_handles, [](std::jthread& thr){return !thr.joinable(); });
+    // Make new task
+    thread_handles.push_back(start_new_connection(cfd, controller));
   }
 }
