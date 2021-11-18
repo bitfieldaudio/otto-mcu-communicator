@@ -86,13 +86,13 @@ endif()
 find_package(
   Boost
   1.74.0
+  COMPONENTS program_options
 )
 
 add_library(otto_boost INTERFACE)
 
 if(Boost_FOUND)
-  target_link_libraries(otto_boost INTERFACE Boost::headers)
-  target_link_libraries(otto_boost INTERFACE Boost::program_options)
+  target_link_libraries(otto_boost INTERFACE ${Boost_LIBRARIES})
 else()
   # boost-cmake is not updated, so manually set the url to a newer version
   # Also use a fork which has an updated list of sources
