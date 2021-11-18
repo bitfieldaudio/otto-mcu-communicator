@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include <string>
+#include <cstring>
 
 #include "lib/domain_socket.hpp"
 

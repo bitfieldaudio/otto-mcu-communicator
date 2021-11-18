@@ -1,4 +1,3 @@
-#include <bits/stdint-uintn.h>
 #include <boost/program_options.hpp>
 #include <ostream>
 namespace po = boost::program_options;
@@ -13,6 +12,11 @@ namespace po = boost::program_options;
 #include "app/controller.hpp"
 #include "lib/domain_socket.hpp"
 #include "lib/i2c.hpp"
+
+/*
+TODO: Controller access should be wrapped in a mutex.
+TODO: Use ppoll to be able to catch SIGTERM on the main thread (the one calling access() )
+*/
 
 using namespace otto;
 
@@ -76,7 +80,7 @@ int main(int argc, char **argv) {
       "address,a", po::value<uint16_t>(&addr)->default_value(119),
       "I2C address in decimal (default is 119 = 0x77)")(
       "socket,s",
-      po::value<std::string>(&socket_path)->default_value("/run/mcucomms"),
+      po::value<std::string>(&socket_path)->default_value("/run/otto-mcu-communicator.sock"),
       "Socket path (default is /run/mcucomms)")(
       "wait_time,w", po::value<int>(&wait_time_ms)->default_value(1),
       "I2C polling wait time in milliseconds (default is 1)");
