@@ -5,6 +5,8 @@
 #include <string>
 #include <thread>
 
+#include <fmt/format.h>
+
 #include "lib/i2c.hpp"
 
 struct hex {
@@ -64,7 +66,7 @@ namespace otto {
       for (int i = 0; i < 10; i++) {
         auto ec = i2c.read_into(data);
         if (ec.value() == EREMOTEIO) {
-          // LOGW("MCU nack'd i2c read ({})", i + 1);
+          fmt::print("MCU nack'd i2c read ({})\n", i + 1);
           // Back off linearly
           std::this_thread::sleep_for(i * 100ns);
           ec = {};
@@ -122,5 +124,5 @@ namespace otto {
 
 } // namespace otto::drivers
 
-using mcu_port_t = otto::TESTMCUPort;
+using mcu_port_t = otto::I2CMCUPort;
 

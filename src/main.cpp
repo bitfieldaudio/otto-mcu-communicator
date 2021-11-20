@@ -40,9 +40,7 @@ std::jthread start_new_connection(int cfd, Controller &controller) {
       util::Packet p;
       while (!child_stop_token.stop_requested()) {
         from_mcu.wait_dequeue(p);
-        // Filter out nullcmd.
-        if (p.cmd != util::Command::none)
-          write(cfd, &p, packet_length);
+        write(cfd, &p, packet_length);
       }
     }};
     // Continuously pass messages from client -> MCU
