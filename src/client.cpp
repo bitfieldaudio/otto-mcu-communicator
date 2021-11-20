@@ -10,7 +10,7 @@
 
 int main(int argc, char *argv[]) {
 
-  std::string socket_path = "mcucomms";
+  std::string socket_path = "build/bin/mcucomms";
   struct sockaddr_un addr;
 
   // Create a new client socket with domain: AF_UNIX, type: SOCK_STREAM, protocol: 0

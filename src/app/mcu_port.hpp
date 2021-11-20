@@ -82,8 +82,29 @@ namespace otto {
       return res;
     }
 
+    void write_buffer(const std::vector<util::Packet>& buf) {
+      for (auto& p : buf) write(p);
+    }
+
+    std::vector<util::Packet>& read_buffer() {
+      buffer.clear();
+      bool do_continue = true;
+      while (do_continue) {
+        buffer.emplace_back(read());
+        if (buffer.back().cmd == util::Command::none)
+          do_continue = false;
+        if (buffer.back().cmd == util::Command::shutdown) {
+          fmt::print("MCU->RPi: Shutdown!");
+          std::system("shutdown");
+          do_continue = false;
+        }
+      }
+      return buffer;
+    }
+
     Config conf;
     util::I2C i2c;
+    std::vector<util::Packet> buffer;
   };
 
 
@@ -118,8 +139,18 @@ namespace otto {
       return res;
     }
 
+    void write_buffer(const std::vector<util::Packet>& buf) {
+      fmt::print("Writing buffer\n");
+    }
+
+    std::vector<util::Packet>& read_buffer() {
+      fmt::print("Reading buffer\n");
+      return buffer;
+    }
+
     Config conf;
     int data_count = 0;
+    std::vector<util::Packet> buffer;
   };
 
 } // namespace otto::drivers
