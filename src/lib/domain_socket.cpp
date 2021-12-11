@@ -6,6 +6,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <fmt/format.h>
+
 #include <cstring>
 #include <optional>
 #include <string>

@@ -13,35 +13,21 @@ namespace otto {
 
 void SocketPool::add_connection(file_descriptor fd) { handles.push_back(fd); }
 
-void SocketPool::remove_connection(file_descriptor fd) {
-  ::close(fd);
-  auto it = std::ranges::find(handles, fd);
-  if (it != handles.end())
-    handles.erase(it);
-}
-
 void SocketPool::purge_connections() {
-  for (auto fd : handles_to_remove)
-    remove_connection(fd);
-  handles_to_remove.clear();
+  std::erase_if(handles, [](auto& fd){return fd < 0;});
 }
 
-void SocketPool::distribute_buffer(buffer_type &packets) {
-  for (auto &p : packets) {
-    distribute_packet(p);
-  }
-}
-
-void SocketPool::distribute_packet(util::Packet &p) {
+void SocketPool::distribute_buffer(const buffer_type &packets) {
   for (auto &fd : handles) {
-    int ret = ::send(fd, &p, packet_length, 0);
-    if (ret == -1)
-      handles_to_remove.push_back(fd);
+    for (auto &p : packets) {
+      if (::send(fd, &p, packet_length, 0) == -1) fd = -1;
+    }  
   }
   purge_connections();
 }
 
-void SocketPool::add_packets_from_conn(file_descriptor fd, buffer_type &buf) {
+// Returns true if file descriptor should be removed from the pool
+bool SocketPool::add_packets_from_conn(file_descriptor fd, buffer_type &buf) {
   util::Packet p;
   while (true) {
     /*
@@ -54,24 +40,22 @@ void SocketPool::add_packets_from_conn(file_descriptor fd, buffer_type &buf) {
     - successful read
     - error+EWOULDBLOCK which means no new data
       - any other error indicate a problem
-    - socket peer has closed down
+    - socket peer has closed down (rc = 0)
     */
     if (rc < 0) {
-      if (errno != EWOULDBLOCK) handles_to_remove.push_back(fd);
-      break;
+      if (errno != EWOULDBLOCK) return true;
+      else return false;
     }
-    if (rc == 0) {
-      handles_to_remove.push_back(fd);
-      break;
-    }
+    if (rc == 0) return true;
     buf.push_back(p);
+    return false;
   }
 }
 
 SocketPool::buffer_type &SocketPool::get_all_packets() {
   buffer.clear();
   for (auto &conn : handles) {
-    add_packets_from_conn(conn, buffer);
+    if(add_packets_from_conn(conn, buffer)) conn = -1;
   }
   purge_connections();
   return buffer;
